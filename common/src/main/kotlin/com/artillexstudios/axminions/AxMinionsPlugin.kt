@@ -135,10 +135,10 @@ class AxMinionsPlugin : AxPlugin() {
 
         MinionTicker.startTicking()
 
-        Scheduler.get().runTimer({ task ->
+        Scheduler.get().runTimer({ _ ->
             dataQueue.submit {
                 Minions.get {
-                    it.fastFor { pos ->
+                    it.forEach { pos ->
                         pos.minions.fastFor { minion ->
                             dataHandler.saveMinion(minion)
                         }
@@ -150,7 +150,7 @@ class AxMinionsPlugin : AxPlugin() {
 
     override fun disable() {
         Minions.get {
-            it.fastFor { pos ->
+            it.forEach { pos ->
                 pos.minions.fastFor { minion ->
                     val minionImp = minion as Minion
 

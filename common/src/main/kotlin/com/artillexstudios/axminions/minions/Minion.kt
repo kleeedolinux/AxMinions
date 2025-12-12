@@ -133,7 +133,7 @@ class Minion(
                 return@onInteract
             }
 
-            Scheduler.get().runAt(location) { task ->
+            Scheduler.get().runAt(location) { _ ->
                 val canBuildAt = AxMinionsPlugin.integrations.getProtectionIntegration().canBuildAt(
                     event.player,
                     event.packetEntity.location()
@@ -180,8 +180,8 @@ class Minion(
         if (Config.DEBUG()) {
             debugHologram = Hologram(location.clone().add(0.0, 2.0, 0.0))
             val page = hologram?.createPage(HologramTypes.TEXT)
-            page?.setEntityMetaHandler({ meta ->
-                val textDisplayMeta = meta as TextDisplayMeta;
+            page?.setEntityMetaHandler({ displayMeta ->
+                val textDisplayMeta = displayMeta as TextDisplayMeta;
                 textDisplayMeta.seeThrough(true);
                 textDisplayMeta.alignment(TextDisplayMeta.Alignment.CENTER);
                 textDisplayMeta.billboardConstrain(DisplayMeta.BillboardConstrain.CENTER);
@@ -698,7 +698,7 @@ class Minion(
         if (linkedChest == null) return
 
         if (ticking) {
-            Scheduler.get().runAt(linkedChest) { a ->
+            Scheduler.get().runAt(linkedChest) { _ ->
                 if (linkedChest!!.world!!.isChunkLoaded(linkedChest!!.blockX shr 4, linkedChest!!.blockZ shr 4)) {
                     linkedInventory = (linkedChest?.block?.state as? Container)?.inventory
                 }

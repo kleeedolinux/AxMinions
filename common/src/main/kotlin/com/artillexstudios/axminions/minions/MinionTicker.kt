@@ -20,12 +20,12 @@ object MinionTicker {
         }
     }
 
-    private inline fun tickAll() {
+    private fun tickAll() {
         // Refill the queue if it's empty or getting low
         if (tickQueue.isEmpty()) {
             Minions.get { minions ->
-                minions.fastFor { pos ->
-                    if (!pos.ticking) return@fastFor
+                minions.forEach { pos ->
+                    if (!pos.ticking) return@forEach
                     pos.minions.fastFor { minion ->
                         tickQueue.offer(minion)
                     }
