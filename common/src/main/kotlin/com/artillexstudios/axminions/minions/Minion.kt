@@ -228,7 +228,7 @@ class Minion(
         Bukkit.getPluginManager().callEvent(preBreakEvent)
         if (preBreakEvent.isCancelled) return
 
-        LinkingListener.linking.remove(player)
+        LinkingListener.linking[player]?.remove(this)
         remove()
         setTicking(false)
         openInventories.fastFor { it.viewers.fastFor { viewer -> viewer.closeInventory() } }

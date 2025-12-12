@@ -19,7 +19,7 @@ import kotlin.math.min
 
 class LinkingListener : Listener {
     companion object {
-        val linking = WeakHashMap<Player, Minion>()
+        val linking = WeakHashMap<Player, MutableList<Minion>>()
         private val CONTAINERS = listOf(Material.BARREL, Material.CHEST, Material.TRAPPED_CHEST)
     }
 
@@ -30,33 +30,44 @@ class LinkingListener : Listener {
         if (event.clickedBlock!!.type !in CONTAINERS) return
         if (!AxMinionsPlugin.integrations.getProtectionIntegration().canBuildAt(event.player, event.clickedBlock!!.location)) return
 
-        val minion = linking.remove(event.player) ?: return
+        val minions = linking.remove(event.player) ?: return
+        var successCount = 0
+        var failCount = 0
 
-        val linkEvent = MinionChestLinkEvent(
-            minion,
-            event.player,
-            event.clickedBlock!!
-        )
-        Bukkit.getPluginManager().callEvent(linkEvent)
-        if (linkEvent.isCancelled) {
-            event.player.sendMessage(StringUtils.formatToString(linkEvent.getFailMessage() ?: (Messages.PREFIX() + Messages.LINK_FAIL())))
-            return
+        for (minion in minions) {
+            val linkEvent = MinionChestLinkEvent(
+                minion,
+                event.player,
+                event.clickedBlock!!
+            )
+            Bukkit.getPluginManager().callEvent(linkEvent)
+            if (linkEvent.isCancelled) {
+                failCount++
+                continue
+            }
+
+            if (minion.getLocation()
+                    .distanceSquared(event.clickedBlock!!.location) > Config.MAX_LINKING_DISTANCE() * Config.MAX_LINKING_DISTANCE()
+            ) {
+                failCount++
+                continue
+            }
+
+            val min = minion as com.artillexstudios.axminions.minions.Minion
+            if (min.broken.get()) {
+                continue
+            }
+
+            minion.setLinkedChest(event.clickedBlock!!.location)
+            successCount++
         }
 
         event.isCancelled = true
-        if (minion.getLocation()
-                .distanceSquared(event.clickedBlock!!.location) > Config.MAX_LINKING_DISTANCE() * Config.MAX_LINKING_DISTANCE()
-        ) {
-            event.player.sendMessage(StringUtils.formatToString(Messages.PREFIX() + Messages.LINK_FAIL()))
-            return
+        if (successCount > 0) {
+            event.player.sendMessage(StringUtils.formatToString(Messages.PREFIX() + Messages.LINK_SUCCESS() + " ($successCount)"))
         }
-
-        val min = minion as com.artillexstudios.axminions.minions.Minion
-        if (min.broken.get()) {
-            return
+        if (failCount > 0) {
+            event.player.sendMessage(StringUtils.formatToString(Messages.PREFIX() + Messages.LINK_FAIL() + " ($failCount failed)"))
         }
-
-        event.player.sendMessage(StringUtils.formatToString(Messages.PREFIX() + Messages.LINK_SUCCESS()))
-        minion.setLinkedChest(event.clickedBlock!!.location)
     }
 }

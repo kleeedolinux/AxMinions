@@ -138,8 +138,13 @@ class MinionInventoryListener : Listener {
                     return
                 }
 
-                player.sendMessage(StringUtils.formatToString(Messages.PREFIX() + Messages.LINK_START()))
-                LinkingListener.linking[player] = minion
+                val list = LinkingListener.linking.computeIfAbsent(player) { mutableListOf() }
+                if (!list.contains(minion)) {
+                    list.add(minion)
+                    player.sendMessage(StringUtils.formatToString(Messages.PREFIX() + Messages.LINK_START() + " (Queue: ${list.size})"))
+                } else {
+                    player.sendMessage(StringUtils.formatToString(Messages.PREFIX() + "Minion already in linking queue! (Queue: ${list.size})"))
+                }
                 player.closeInventory()
             }
 
