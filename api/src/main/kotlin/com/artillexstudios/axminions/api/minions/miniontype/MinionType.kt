@@ -62,12 +62,14 @@ abstract class MinionType(private val name: String, private val defaults: InputS
         return true
     }
 
-    fun tick(minion: Minion) {
+    open fun tick(minion: Minion) {
         if (!com.artillexstudios.axminions.api.config.Config.WORK_WHEN_OWNER_OFFLINE() && !minion.isOwnerOnline()) return
         if (!shouldRun(minion)) return
 
-        minion.resetAnimation()
-        run(minion)
+        com.artillexstudios.axapi.scheduler.Scheduler.get().executeAt(minion.getLocation()) {
+            minion.resetAnimation()
+            run(minion)
+        }
     }
 
     fun getItem(level: Int = 1, actions: Long = 0, charge: Long = 0): ItemStack {

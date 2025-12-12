@@ -262,20 +262,28 @@ class Minion(
         }
 
         if (Config.DEBUG() && debugHologram != null) {
-            (debugHologram?.page(0) as TextDisplayHologramPage).setContent("Ticking: $ticking")
+            Scheduler.get().runAt(location) {
+                (debugHologram?.page(0) as TextDisplayHologramPage).setContent("Ticking: $ticking")
+            }
         }
 
         if (Config.CHARGE_ENABLED() && getCharge() < System.currentTimeMillis()) {
-            Warnings.NO_CHARGE.display(this)
+            Scheduler.get().runAt(location) {
+                Warnings.NO_CHARGE.display(this)
+            }
             return
         }
 
-        Warnings.remove(this, Warnings.NO_CHARGE)
-
-        Scheduler.get().executeAt(location) {
-            type.tick(this)
+        Scheduler.get().runAt(location) {
+            Warnings.remove(this, Warnings.NO_CHARGE)
         }
-        animate()
+
+        // Run type tick directly (it handles its own scheduling)
+        type.tick(this)
+        
+        Scheduler.get().runAt(location) {
+            animate()
+        }
     }
 
     override fun getLocation(): Location {
@@ -564,6 +572,14 @@ class Minion(
 
     override fun hasData(key: String): Boolean {
         return extraData.containsKey(key)
+    }
+
+    override fun setData(key: String, value: String) {
+        extraData[key] = value
+    }
+
+    override fun removeData(key: String) {
+        extraData.remove(key)
     }
 
     override fun getNextAction(): Int {

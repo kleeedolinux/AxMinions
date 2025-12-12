@@ -20,6 +20,10 @@ object MinionTicker {
         }
     }
 
+    private val executor = java.util.concurrent.Executors.newFixedThreadPool(
+        Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+    )
+
     private fun tickAll() {
         // Refill the queue if it's empty or getting low
         if (tickQueue.isEmpty()) {
@@ -38,9 +42,15 @@ object MinionTicker {
         while (processed < batchSize && tickQueue.isNotEmpty()) {
             val minion = tickQueue.poll() ?: break
             
-            // Check if minion is still ticking (might have been removed)
-            if (minion.isTicking()) {
-                minion.tick()
+            executor.submit {
+                // Check if minion is still ticking (might have been removed)
+                if (minion.isTicking()) {
+                    try {
+                        minion.tick()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
             }
             
             processed++

@@ -58,6 +58,10 @@ interface Minion : InventoryHolder {
 
     fun hasData(key: String): Boolean
 
+    fun setData(key: String, value: String)
+
+    fun removeData(key: String)
+
     fun getNextAction(): Int
 
     fun getActionAmount(): Long

@@ -61,12 +61,26 @@ class FisherMinionType : MinionType("fisher", AxMinionsPlugin.INSTANCE.getResour
         }
 
         var waterLocation: Location? = null
-        run breaking@{
-            LocationUtils.getAllBlocksInRadius(minion.getLocation(), 2.0, false).fastFor {
-                if (it.block.type != Material.WATER) return@fastFor
+        val cachedWater = minion.getData("waterLocation")
+        if (cachedWater != null) {
+            val split = cachedWater.split(":")
+            val loc = Location(minion.getLocation().world, split[0].toDouble(), split[1].toDouble(), split[2].toDouble())
+            if (loc.block.type == Material.WATER) {
+                waterLocation = loc
+            } else {
+                minion.removeData("waterLocation")
+            }
+        }
 
-                waterLocation = it
-                return@breaking
+        if (waterLocation == null) {
+            run breaking@{
+                LocationUtils.getAllBlocksInRadius(minion.getLocation(), 2.0, false).fastFor {
+                    if (it.block.type != Material.WATER) return@fastFor
+    
+                    waterLocation = it
+                    minion.setData("waterLocation", "${it.blockX}:${it.blockY}:${it.blockZ}")
+                    return@breaking
+                }
             }
         }
 
