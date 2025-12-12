@@ -202,7 +202,7 @@ class Minion(
         if (com.artillexstudios.axapi.utils.Version.getServerVersion().protocolId < 762) return
 
         Scheduler.get().runAt(location, Runnable {
-            if (interactionEntity != null && interactionEntity?.isValid == true) return@runAt
+            if (interactionEntity != null && interactionEntity?.isValid == true) return@Runnable
 
             if (location.world != null) {
                 val nearby = location.world!!.getNearbyEntities(location, 0.1, 0.1, 0.1)
