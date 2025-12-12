@@ -201,7 +201,7 @@ class Minion(
     private fun spawnInteractionEntity() {
         if (com.artillexstudios.axapi.utils.Version.getServerVersion().protocolId < 762) return
 
-        Scheduler.get().runAt(location) {
+        Scheduler.get().runAt(location, Runnable {
             if (interactionEntity != null && interactionEntity?.isValid == true) return@runAt
 
             if (location.world != null) {
@@ -220,7 +220,7 @@ class Minion(
                 it.persistentDataContainer.set(Keys.MINION_TYPE, PersistentDataType.STRING, "interaction")
                 it.isPersistent = false
             }
-        }
+        })
     }
 
     fun breakMinion(player: Player) {
@@ -262,28 +262,28 @@ class Minion(
         }
 
         if (Config.DEBUG() && debugHologram != null) {
-            Scheduler.get().runAt(location) {
+            Scheduler.get().runAt(location, Runnable {
                 (debugHologram?.page(0) as TextDisplayHologramPage).setContent("Ticking: $ticking")
-            }
+            })
         }
 
         if (Config.CHARGE_ENABLED() && getCharge() < System.currentTimeMillis()) {
-            Scheduler.get().runAt(location) {
+            Scheduler.get().runAt(location, Runnable {
                 Warnings.NO_CHARGE.display(this)
-            }
+            })
             return
         }
 
-        Scheduler.get().runAt(location) {
+        Scheduler.get().runAt(location, Runnable {
             Warnings.remove(this, Warnings.NO_CHARGE)
-        }
+        })
 
         // Run type tick directly (it handles its own scheduling)
         type.tick(this)
         
-        Scheduler.get().runAt(location) {
+        Scheduler.get().runAt(location, Runnable {
             animate()
-        }
+        })
     }
 
     override fun getLocation(): Location {
