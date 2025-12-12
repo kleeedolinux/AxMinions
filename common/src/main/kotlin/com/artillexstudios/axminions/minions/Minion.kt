@@ -108,6 +108,7 @@ class Minion(
     val broken = AtomicBoolean(false)
     private var ownerOnline = false
     private var unbreakable = false
+    private var interactionEntity: org.bukkit.entity.Interaction? = null
 
     init {
         spawn()
@@ -150,10 +151,10 @@ class Minion(
                     
                     if (ownerUUID == event.player.uniqueId) {
                         broken.set(true)
-                        breakMinion(event)
+                        breakMinion(event.player)
                     } else if ((canBuildAt && !Config.ONLY_OWNER_BREAK()) || event.player.hasPermission("axminions.*")) {
                         broken.set(true)
-                        breakMinion(event)
+                        breakMinion(event.player)
                     }
                     // If no permission, don't set broken flag at all
                 } else {
@@ -194,20 +195,46 @@ class Minion(
         setDirection(direction, false)
         updateArmour()
         entity.spawn()
+        spawnInteractionEntity()
     }
 
-    private fun breakMinion(event: PacketEntityInteractEvent) {
-        val preBreakEvent = PreMinionPickupEvent(event.player, this)
+    private fun spawnInteractionEntity() {
+        if (com.artillexstudios.axapi.utils.Version.getServerVersion().protocolId < 762) return
+
+        Scheduler.get().runAt(location) {
+            if (interactionEntity != null && interactionEntity?.isValid == true) return@runAt
+
+            if (location.world != null) {
+                val nearby = location.world!!.getNearbyEntities(location, 0.1, 0.1, 0.1)
+                nearby.forEach {
+                    if (it is org.bukkit.entity.Interaction && it.persistentDataContainer.has(Keys.MINION_TYPE, PersistentDataType.STRING)) {
+                        it.remove()
+                    }
+                }
+            }
+
+            interactionEntity = location.world?.spawn(location, org.bukkit.entity.Interaction::class.java) {
+                it.interactionWidth = 0.5f
+                it.interactionHeight = 1.0f
+                it.isResponsive = true
+                it.persistentDataContainer.set(Keys.MINION_TYPE, PersistentDataType.STRING, "interaction")
+                it.isPersistent = false
+            }
+        }
+    }
+
+    fun breakMinion(player: Player) {
+        val preBreakEvent = PreMinionPickupEvent(player, this)
         Bukkit.getPluginManager().callEvent(preBreakEvent)
         if (preBreakEvent.isCancelled) return
 
-        LinkingListener.linking.remove(event.player)
+        LinkingListener.linking.remove(player)
         remove()
         setTicking(false)
         openInventories.fastFor { it.viewers.fastFor { viewer -> viewer.closeInventory() } }
         val tool = getTool()
         val asItem = getAsItem()
-        val remaining = event.player.inventory.addItem(tool, asItem)
+        val remaining = player.inventory.addItem(tool, asItem)
 
         if (getType() == MinionTypes.getMinionTypes()["seller"]) {
             AxMinionsPlugin.integrations.getEconomyIntegration()?.let {
@@ -591,7 +618,9 @@ class Minion(
     override fun setDirection(direction: Direction, save: Boolean) {
         this.direction = direction
         location.yaw = direction.yaw
+        location.yaw = direction.yaw
         entity.teleport(location)
+        interactionEntity?.teleport(location)
 
         if (save) {
             AxMinionsPlugin.dataQueue.submit {
@@ -607,7 +636,9 @@ class Minion(
     override fun remove() {
         Warnings.remove(this, warning ?: Warnings.NO_CONTAINER)
         Minions.remove(this)
+        Minions.remove(this)
         entity.remove()
+        interactionEntity?.remove()
 
         AxMinionsPlugin.dataQueue.submit {
             AxMinionsPlugin.dataHandler.deleteMinion(this)
@@ -619,6 +650,10 @@ class Minion(
                 }
             }
         }
+    }
+
+    fun isInteractionEntity(entity: org.bukkit.entity.Entity): Boolean {
+        return interactionEntity != null && interactionEntity?.uniqueId == entity.uniqueId
     }
 
     override fun getLinkedInventory(): Inventory? {
@@ -698,6 +733,7 @@ class Minion(
         if (linkedChest == null) return
 
         if (ticking) {
+            spawnInteractionEntity()
             Scheduler.get().runAt(linkedChest) { _ ->
                 if (linkedChest!!.world!!.isChunkLoaded(linkedChest!!.blockX shr 4, linkedChest!!.blockZ shr 4)) {
                     linkedInventory = (linkedChest?.block?.state as? Container)?.inventory

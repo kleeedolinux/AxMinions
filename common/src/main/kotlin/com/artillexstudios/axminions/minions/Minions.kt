@@ -128,6 +128,11 @@ object Minions {
         return minionsMap.values.sumOf { it.minions.size }
     }
     
+    fun getMinionsInChunk(chunk: Chunk): List<Minion> {
+        val key = getChunkKey(chunk)
+        return minionsMap[key]?.minions ?: emptyList()
+    }
+
     /**
      * Get chunk count for monitoring/debugging
      */
