@@ -78,6 +78,8 @@ class Config(file: File, stream: InputStream) {
 
             return debug ?: false
         }
+        @JvmStatic
+        fun TICKER_BATCH_SIZE() = AxMinionsAPI.INSTANCE.getConfig().get("ticker-batch-size", 50)
     }
 
     private val config = Config(

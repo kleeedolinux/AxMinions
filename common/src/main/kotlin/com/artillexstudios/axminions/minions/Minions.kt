@@ -4,83 +4,61 @@ import com.artillexstudios.axminions.api.minions.Minion
 import com.artillexstudios.axminions.api.minions.utils.ChunkPos
 import com.artillexstudios.axapi.scheduler.Scheduler
 import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 import org.bukkit.Bukkit
 import org.bukkit.Chunk
+import java.util.UUID
 
 object Minions {
     internal val lock = ReentrantReadWriteLock()
-    internal val minions = arrayListOf<ChunkPos>()
+    // Use ConcurrentHashMap for O(1) lookups instead of O(n) ArrayList iteration
+    private val minionsMap = ConcurrentHashMap<String, ChunkPos>()
+    
+    /**
+     * Creates a unique key for chunk position
+     */
+    private fun getChunkKey(worldUUID: UUID, chunkX: Int, chunkZ: Int): String {
+        return "$worldUUID:$chunkX:$chunkZ"
+    }
+    
+    private fun getChunkKey(chunk: Chunk): String {
+        return getChunkKey(chunk.world.uid, chunk.x, chunk.z)
+    }
 
     fun startTicking(chunk: Chunk) {
-        val chunkX = chunk.x
-        val chunkZ = chunk.z
-        val world = chunk.world
-
-        if (!Bukkit.isPrimaryThread()) { 
-            Scheduler.get().run { a ->
-                run breaking@{
-                    minions.forEach {
-                        if (world.uid == it.worldUUID && it.x == chunkX && it.z == chunkZ) {
-                            it.setTicking(true)
-                            return@breaking
-                        }
-                    }
+        val key = getChunkKey(chunk)
+        val chunkPos = minionsMap[key]
+        
+        if (chunkPos != null) {
+            if (!Bukkit.isPrimaryThread()) {
+                Scheduler.get().run { _ ->
+                    chunkPos.setTicking(true)
                 }
-            }
-        } else {
-            run breaking@{
-                minions.forEach {
-                    if (world.uid == it.worldUUID && it.x == chunkX && it.z == chunkZ) {
-                        it.setTicking(true)
-                        return@breaking
-                    }
-                }
+            } else {
+                chunkPos.setTicking(true)
             }
         }
-
     }
 
     fun isTicking(chunk: Chunk): Boolean {
-        val chunkX = chunk.x
-        val chunkZ = chunk.z
-        val world = chunk.world
-
-        minions.forEach {
-            if (world.uid == it.worldUUID && it.x == chunkX && it.z == chunkZ) {
-                return it.ticking
-            }
-        }
-        
-        return false
+        val key = getChunkKey(chunk)
+        return minionsMap[key]?.ticking ?: false
     }
 
     fun stopTicking(chunk: Chunk) {
-        val chunkX = chunk.x
-        val chunkZ = chunk.z
-        val world = chunk.world
-
-        if (!Bukkit.isPrimaryThread()) {
-            Scheduler.get().run {  a ->
-                run breaking@{
-                    minions.forEach {
-                        if (world.uid == it.worldUUID && it.x == chunkX && it.z == chunkZ) {
-                            it.setTicking(false)
-                            return@breaking
-                        }
-                    }
+        val key = getChunkKey(chunk)
+        val chunkPos = minionsMap[key]
+        
+        if (chunkPos != null) {
+            if (!Bukkit.isPrimaryThread()) {
+                Scheduler.get().run { _ ->
+                    chunkPos.setTicking(false)
                 }
-            }
-        } else {
-            run breaking@{
-                minions.forEach {
-                    if (world.uid == it.worldUUID && it.x == chunkX && it.z == chunkZ) {
-                        it.setTicking(false)
-                        return@breaking
-                    }
-                }
+            } else {
+                chunkPos.setTicking(false)
             }
         }
     }
@@ -89,43 +67,20 @@ object Minions {
         val chunkX = minion.getLocation().blockX shr 4
         val chunkZ = minion.getLocation().blockZ shr 4
         val world = minion.getLocation().world ?: return
+        val key = getChunkKey(world.uid, chunkX, chunkZ)
 
         if (!Bukkit.isPrimaryThread()) {
-            Scheduler.get().run { a ->
-                var pos: ChunkPos? = null
-                run breaking@{
-                    minions.forEach {
-                        if (world.uid == it.worldUUID && it.x == chunkX && it.z == chunkZ) {
-                            pos = it
-                            return@breaking
-                        }
-                    }
+            Scheduler.get().run { _ ->
+                val pos = minionsMap.computeIfAbsent(key) {
+                    ChunkPos(world, chunkX, chunkZ, false)
                 }
-
-                if (pos == null) {
-                    pos = ChunkPos(world, chunkX, chunkZ, false)
-                    minions.add(pos!!)
-                }
-
-                pos!!.addMinion(minion)
+                pos.addMinion(minion)
             }
         } else {
-            var pos: ChunkPos? = null
-            run breaking@{
-                minions.forEach {
-                    if (world.uid == it.worldUUID && it.x == chunkX && it.z == chunkZ) {
-                        pos = it
-                        return@breaking
-                    }
-                }
+            val pos = minionsMap.computeIfAbsent(key) {
+                ChunkPos(world, chunkX, chunkZ, false)
             }
-
-            if (pos == null) {
-                pos = ChunkPos(world, chunkX, chunkZ, false)
-                minions.add(pos!!)
-            }
-
-           pos!!.addMinion(minion)
+            pos.addMinion(minion)
         }
     }
 
@@ -133,32 +88,19 @@ object Minions {
         val chunkX = minion.getLocation().blockX shr 4
         val chunkZ = minion.getLocation().blockZ shr 4
         val world = minion.getLocation().world ?: return
+        val key = getChunkKey(world.uid, chunkX, chunkZ)
 
         if (!Bukkit.isPrimaryThread()) {
-            Scheduler.get().run { a ->
-                val iterator = minions.iterator()
-                while (iterator.hasNext()) {
-                    val next = iterator.next()
-
-                    if (world.uid == next.worldUUID && next.x == chunkX && next.z == chunkZ) {
-                        if (next.removeMinion(minion)) {
-                            iterator.remove()
-                        }
-                        break
-                    }
+            Scheduler.get().run { _ ->
+                val chunkPos = minionsMap[key]
+                if (chunkPos != null && chunkPos.removeMinion(minion)) {
+                    minionsMap.remove(key)
                 }
             }
         } else {
-            val iterator = minions.iterator()
-            while (iterator.hasNext()) {
-                val next = iterator.next()
-
-                if (world.uid == next.worldUUID && next.x == chunkX && next.z == chunkZ) {
-                    if (next.removeMinion(minion)) {
-                        iterator.remove()
-                    }
-                    break
-                }
+            val chunkPos = minionsMap[key]
+            if (chunkPos != null && chunkPos.removeMinion(minion)) {
+                minionsMap.remove(key)
             }
         }
     }
@@ -166,17 +108,30 @@ object Minions {
     fun getMinions(): List<Minion> {
         val list = mutableListOf<Minion>()
         lock.read {
-            minions.forEach {
+            minionsMap.values.forEach {
                 list.addAll(it.minions)
             }
-
             return Collections.unmodifiableList(list)
         }
     }
 
-    internal inline fun get(minions: (ArrayList<ChunkPos>) -> Unit) {
+    internal inline fun get(minions: (Collection<ChunkPos>) -> Unit) {
         lock.read {
-            minions(this.minions)
+            minions(minionsMap.values)
         }
+    }
+    
+    /**
+     * Get minion count for monitoring/debugging
+     */
+    fun getMinionCount(): Int {
+        return minionsMap.values.sumOf { it.minions.size }
+    }
+    
+    /**
+     * Get chunk count for monitoring/debugging
+     */
+    fun getChunkCount(): Int {
+        return minionsMap.size
     }
 }

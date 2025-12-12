@@ -48,6 +48,12 @@ work-when-owner-offline: true
 # The maximum amount of blocks a single lumber minion may break at a time
 max-breaks-per-tick: 200
 
+# How many minions should be processed per tick
+# Higher values = more minions processed per tick (may cause lag spikes)
+# Lower values = smoother performance but slower minion operations
+# Recommended: 50-100 for most servers
+ticker-batch-size: 50
+
 # What type of message we should send when the upgrade fails
 # due to insufficient funds
 # Possible options: chat, title, subtitle, actionbar

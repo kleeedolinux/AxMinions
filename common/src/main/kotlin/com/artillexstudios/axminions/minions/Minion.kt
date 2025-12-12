@@ -133,12 +133,6 @@ class Minion(
                 return@onInteract
             }
 
-            // We want to do this, so we don't accidentally cause dupes...
-            // Atomic variable; we don't want the scheduler to mess up the state
-            if (event.isAttack) {
-                broken.set(true)
-            }
-
             Scheduler.get().runAt(location) { task ->
                 val canBuildAt = AxMinionsPlugin.integrations.getProtectionIntegration().canBuildAt(
                     event.player,
@@ -146,18 +140,24 @@ class Minion(
                 )
 
                 if (event.isAttack) {
+                    // We want to do this, so we don't accidentally cause dupes...
+                    // Atomic variable; we don't want the scheduler to mess up the state
+                    // Only set broken to true if we're actually going to break the minion
                     if (event.player.inventory.firstEmpty() == -1) {
-                        broken.set(false)
-                    } else {
-                        if (ownerUUID == event.player.uniqueId) {
-                            breakMinion(event)
-                        } else if ((canBuildAt && !Config.ONLY_OWNER_BREAK()) || event.player.hasPermission("axminions.*")) {
-                            breakMinion(event)
-                        } else {
-                            broken.set(false)
-                        }
+                        // Inventory is full, can't break
+                        return@runAt
                     }
+                    
+                    if (ownerUUID == event.player.uniqueId) {
+                        broken.set(true)
+                        breakMinion(event)
+                    } else if ((canBuildAt && !Config.ONLY_OWNER_BREAK()) || event.player.hasPermission("axminions.*")) {
+                        broken.set(true)
+                        breakMinion(event)
+                    }
+                    // If no permission, don't set broken flag at all
                 } else {
+                    // Non-attack interaction (right-click to open GUI)
                     if (ownerUUID == event.player.uniqueId) {
                         openInventory(event.player)
                     } else if ((canBuildAt && !Config.ONLY_OWNER_GUI()) || event.player.hasPermission("axminions.*")) {
