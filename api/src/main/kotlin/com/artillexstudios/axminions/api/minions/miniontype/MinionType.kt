@@ -66,10 +66,10 @@ abstract class MinionType(private val name: String, private val defaults: InputS
         if (!com.artillexstudios.axminions.api.config.Config.WORK_WHEN_OWNER_OFFLINE() && !minion.isOwnerOnline()) return
         if (!shouldRun(minion)) return
 
-        com.artillexstudios.axapi.scheduler.Scheduler.get().executeAt(minion.getLocation()) {
+        com.artillexstudios.axapi.scheduler.Scheduler.get().runAt(minion.getLocation(), Runnable {
             minion.resetAnimation()
             run(minion)
-        }
+        })
     }
 
     fun getItem(level: Int = 1, actions: Long = 0, charge: Long = 0): ItemStack {

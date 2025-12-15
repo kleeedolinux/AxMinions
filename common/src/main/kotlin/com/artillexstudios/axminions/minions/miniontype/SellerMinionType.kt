@@ -21,7 +21,7 @@ class SellerMinionType : MinionType("seller", AxMinionsPlugin.INSTANCE.getResour
         minionImpl.setRange(getDouble("range", minion.getLevel()))
         val tool = minion.getTool()?.getEnchantmentLevel(Enchantment.DIG_SPEED)?.div(10.0) ?: 0.1
         val efficiency = 1.0 - if (tool > 0.9) 0.9 else tool
-        minionImpl.setNextAction((getLong("speed", minion.getLevel()) * efficiency).roundToInt())
+        minionImpl.setNextAction((getLong("speed", minion.getLevel()) * efficiency).roundToInt().coerceAtLeast(1))
     }
 
     override fun run(minion: Minion) {

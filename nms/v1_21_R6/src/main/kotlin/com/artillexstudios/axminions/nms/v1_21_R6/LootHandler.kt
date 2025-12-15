@@ -1,6 +1,7 @@
 package com.artillexstudios.axminions.nms.v1_21_R6
 
 import com.artillexstudios.axminions.api.minions.Minion
+import com.artillexstudios.axminions.nms.v1_21_R6.DamageHandler
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.storage.loot.BuiltInLootTables
 import net.minecraft.world.level.storage.loot.LootParams
@@ -22,10 +23,14 @@ object LootHandler {
         }
 
         val level = (minion.getLocation().world as CraftWorld).handle
-
-        val lootparams = LootParams.Builder(level).withParameter(
-            LootContextParams.ORIGIN, Vec3(waterLocation.x, waterLocation.y, waterLocation.z)
-        ).withParameter(LootContextParams.TOOL, nmsItem).withOptionalParameter(LootContextParams.THIS_ENTITY, null)
+        
+        // Create a dummy fishing hook to satisfy loot table requirements that might check for projectile properties
+        val hook = net.minecraft.world.entity.projectile.FishingHook(net.minecraft.world.entity.EntityType.FISHING_BOBBER, level)
+        
+        val lootparams = LootParams.Builder(level)
+            .withParameter(LootContextParams.ORIGIN, Vec3(waterLocation.x, waterLocation.y, waterLocation.z))
+            .withParameter(LootContextParams.TOOL, nmsItem)
+            .withParameter(LootContextParams.THIS_ENTITY, hook)
             .create(LootContextParamSets.FISHING)
 
         val lootTable = MinecraftServer.getServer().reloadableRegistries().getLootTable(BuiltInLootTables.FISHING);

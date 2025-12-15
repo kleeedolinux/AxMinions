@@ -29,7 +29,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute
 import java.util.*
 
 object DamageHandler {
-    private var DUMMY_ENTITY = Fox(EntityType.FOX, (Bukkit.getWorlds().get(0) as CraftWorld).handle)
+    var DUMMY_ENTITY = Fox(EntityType.FOX, (Bukkit.getWorlds().get(0) as CraftWorld).handle)
     private var minion: Minion? = null
 
     fun getUUID(): UUID {
