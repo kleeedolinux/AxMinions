@@ -785,18 +785,7 @@ class Minion(
     }
 
     override fun addToContainerOrDrop(itemStack: ItemStack) {
-        if (linkedInventory == null) {
-            AxMinionsPlugin.integrations
-                    .getStackerIntegration()
-                    .dropItemAt(itemStack, itemStack.amount, location)
-            return
-        }
-
-        val remaining = linkedInventory?.addItem(itemStack)
-
-        remaining?.fastFor { _, u ->
-            AxMinionsPlugin.integrations.getStackerIntegration().dropItemAt(u, u.amount, location)
-        }
+        ItemBatchQueue.enqueue(linkedInventory, itemStack, location)
     }
 
     override fun addWithRemaining(itemStack: ItemStack): HashMap<Int, ItemStack>? {
@@ -808,7 +797,8 @@ class Minion(
     }
 
     override fun addToContainerOrDrop(itemStack: Iterable<ItemStack>) {
-        itemStack.forEach { addToContainerOrDrop(it) }
+        val items = if (itemStack is List<ItemStack>) itemStack else itemStack.toList()
+        ItemBatchQueue.enqueue(linkedInventory, items, location)
     }
 
     override fun updateArmour() {

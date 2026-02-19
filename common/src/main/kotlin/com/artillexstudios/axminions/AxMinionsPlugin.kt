@@ -25,10 +25,12 @@ import com.artillexstudios.axminions.listeners.MinionInventoryListener
 import com.artillexstudios.axminions.listeners.MinionPlaceListener
 import com.artillexstudios.axminions.listeners.PlayerListener
 import com.artillexstudios.axminions.listeners.WorldListener
+import com.artillexstudios.axminions.minions.ItemBatchQueue
 import com.artillexstudios.axminions.minions.Minion
 import com.artillexstudios.axminions.minions.MinionTicker
 import com.artillexstudios.axminions.minions.Minions
 import com.artillexstudios.axminions.minions.miniontype.CollectorMinionType
+import com.artillexstudios.axminions.minions.miniontype.CrafterMinionType
 import com.artillexstudios.axminions.minions.miniontype.FarmerMinionType
 import com.artillexstudios.axminions.minions.miniontype.FisherMinionType
 import com.artillexstudios.axminions.minions.miniontype.LumberMinionType
@@ -36,7 +38,6 @@ import com.artillexstudios.axminions.minions.miniontype.MinerMinionType
 import com.artillexstudios.axminions.minions.miniontype.SellerMinionType
 import com.artillexstudios.axminions.minions.miniontype.SlayerMinionType
 import java.io.File
-import com.artillexstudios.axminions.minions.miniontype.CrafterMinionType
 import org.bstats.bukkit.Metrics
 import org.bukkit.Bukkit
 import revxrsal.commands.bukkit.BukkitCommandHandler
@@ -56,7 +57,7 @@ class AxMinionsPlugin : AxPlugin() {
         manager.dependency("com{}h2database:h2:2.2.220")
         manager.relocate("org{}jetbrains{}kotlin", "com.artillexstudios.axminions.libs.kotlin")
         manager.relocate("org{}h2", "com.artillexstudios.axminions.libs.h2")
-     }
+    }
 
     override fun updateFlags() {
         FeatureFlags.PACKET_ENTITY_TRACKER_ENABLED.set(true)
@@ -96,8 +97,9 @@ class AxMinionsPlugin : AxPlugin() {
         handler.registerValueResolver(MinionType::class.java) { c ->
             val type = c.popForParameter()
 
-            val minionType = MinionTypes.valueOf(type) ?: return@registerValueResolver MinionTypes.valueOf("collector")
-
+            val minionType =
+                    MinionTypes.valueOf(type)
+                            ?: return@registerValueResolver MinionTypes.valueOf("collector")
 
             return@registerValueResolver minionType
         }
@@ -130,36 +132,41 @@ class AxMinionsPlugin : AxPlugin() {
                 dataHandler.loadMinionsForWorld(v, world)
             }
 
-            world.loadedChunks.fastFor {
-                Minions.startTicking(it)
-            }
+            world.loadedChunks.fastFor { Minions.startTicking(it) }
         }
 
         MinionTicker.startTicking()
+        ItemBatchQueue.startFlushing()
 
-        Scheduler.get().runTimer({ _ ->
-            dataQueue.submit {
-                Minions.get {
-                    it.forEach { pos ->
-                        pos.minions.fastFor { minion ->
-                            dataHandler.saveMinion(minion)
-                        }
-                    }
-                }
-            }
-        }, 1, Config.AUTO_SAVE_MINUTES() * 20 * 60)
+        Scheduler.get()
+                .runTimer(
+                        { _ ->
+                            dataQueue.submit {
+                                Minions.get {
+                                    it.forEach { pos ->
+                                        pos.minions.fastFor { minion ->
+                                            dataHandler.saveMinion(minion)
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        1,
+                        Config.AUTO_SAVE_MINUTES() * 20 * 60
+                )
     }
 
     override fun disable() {
+        // Flush any remaining queued items before shutdown
+        ItemBatchQueue.shutdown()
+
         Minions.get {
             it.forEach { pos ->
                 pos.minions.fastFor { minion ->
                     val minionImp = minion as Minion
 
                     minionImp.openInventories.fastFor { inventory ->
-                        inventory.viewers.fastFor { player ->
-                            player.closeInventory()
-                        }
+                        inventory.viewers.fastFor { player -> player.closeInventory() }
                     }
                 }
             }
