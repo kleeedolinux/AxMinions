@@ -10,7 +10,8 @@ import org.bukkit.Material
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.inventory.DoubleChestInventory
 
-class SellerMinionType : MinionType("seller", AxMinionsPlugin.INSTANCE.getResource("minions/seller.yml")!!) {
+class SellerMinionType :
+        MinionType("seller", AxMinionsPlugin.INSTANCE.getResource("minions/seller.yml")!!) {
 
     override fun shouldRun(minion: Minion): Boolean {
         return MinionTicker.getTick() % minion.getNextAction() == 0L
@@ -21,11 +22,14 @@ class SellerMinionType : MinionType("seller", AxMinionsPlugin.INSTANCE.getResour
         minionImpl.setRange(getDouble("range", minion.getLevel()))
         val tool = minion.getTool()?.getEnchantmentLevel(Enchantment.DIG_SPEED)?.div(10.0) ?: 0.1
         val efficiency = 1.0 - if (tool > 0.9) 0.9 else tool
-        minionImpl.setNextAction((getLong("speed", minion.getLevel()) * efficiency).roundToInt().coerceAtLeast(1))
+        minionImpl.setNextAction(
+                (getLong("speed", minion.getLevel()) * efficiency).roundToInt().coerceAtLeast(1)
+        )
     }
 
     override fun run(minion: Minion) {
-        if (minion.getLinkedInventory() != null && minion.getLinkedInventory()?.firstEmpty() != -1) {
+        if (minion.getLinkedInventory() != null && minion.getLinkedInventory()?.firstEmpty() != -1
+        ) {
             Warnings.remove(minion, Warnings.CONTAINER_FULL)
         }
 
@@ -35,11 +39,17 @@ class SellerMinionType : MinionType("seller", AxMinionsPlugin.INSTANCE.getResour
         }
 
         val type = minion.getLinkedChest()!!.block.type
-        if (type == Material.CHEST && minion.getLinkedInventory() !is DoubleChestInventory && hasChestOnSide(minion.getLinkedChest()!!.block)) {
+        if (type == Material.CHEST &&
+                        minion.getLinkedInventory() !is DoubleChestInventory &&
+                        hasChestOnSide(minion.getLinkedChest()!!.block)
+        ) {
             minion.setLinkedChest(minion.getLinkedChest())
         }
 
-        if (type == Material.CHEST && minion.getLinkedInventory() is DoubleChestInventory && !hasChestOnSide(minion.getLinkedChest()!!.block)) {
+        if (type == Material.CHEST &&
+                        minion.getLinkedInventory() is DoubleChestInventory &&
+                        !hasChestOnSide(minion.getLinkedChest()!!.block)
+        ) {
             minion.setLinkedChest(minion.getLinkedChest())
         }
 
@@ -68,12 +78,15 @@ class SellerMinionType : MinionType("seller", AxMinionsPlugin.INSTANCE.getResour
             return
         }
 
+        val pricesIntegration = AxMinionsPlugin.integrations.getPricesIntegration()!!
+        val owner = minion.getOwner()
+
         for (it in minion.getLinkedInventory()!!.contents) {
             if (it == null || it.type == Material.AIR) {
                 continue
             }
 
-            var price = AxMinionsPlugin.integrations.getPricesIntegration()!!.getPrice(it)
+            var price = pricesIntegration.getPrice(it, owner)
 
             if (price <= 0) {
                 if (getConfig().get("delete-unsellable")) {
