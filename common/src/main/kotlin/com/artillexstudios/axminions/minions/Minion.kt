@@ -47,7 +47,6 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.Damageable
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataType
-import org.bukkit.util.EulerAngle
 
 class Minion(
         private var location: Location,
@@ -92,7 +91,6 @@ class Minion(
     private var range = 0.0
 
     @Volatile private var dirty = true
-    private var armTick = 2.0
     private var warning: Warning? = null
     private var hologram: Hologram? = null
     private val extraData = hashMapOf<String, String>()
@@ -311,12 +309,6 @@ class Minion(
 
         // Run type tick directly (it handles its own scheduling)
         type.tick(this)
-
-        // Only schedule animation when there's actually an animation in progress
-        // This avoids a Scheduler.runAt() call on the main thread for every minion every tick
-        if (armTick < 2.0) {
-            Scheduler.get().runAt(location, Runnable { animate() })
-        }
     }
 
     override fun getLocation(): Location {
@@ -721,15 +713,11 @@ class Minion(
     }
 
     override fun resetAnimation() {
-        armTick = 0.0
+        // No-op: animation disabled for performance
     }
 
     override fun animate() {
-        if (armTick >= 2) return
-
-        val meta = entity.meta() as ArmorStandMeta
-        meta.metadata().set(Accessors.RIGHT_ARM_ROTATION, EulerAngle(-2 + armTick, 0.0, 0.0))
-        armTick += 0.2
+        // No-op: animation disabled for performance
     }
 
     override fun setLinkedChest(location: Location?) {
