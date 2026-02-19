@@ -15,25 +15,17 @@ object MinionTicker {
                     Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
             )
 
-    /**
-     * Tick interval for staggering minion updates. A value of 2 means each minion ticks every 2nd
-     * server tick (every 100ms instead of 50ms). This halves the per-tick workload with virtually
-     * no gameplay impact.
-     */
-    private const val TICK_INTERVAL = 2
-
     private fun tickAll() {
         val batchSize = Config.TICKER_BATCH_SIZE()
-        val currentTick = tick
 
-        // Collect only the minions that should tick THIS tick (stagger by hash)
+        // Collect all ticking minions
         val tickableMinions = ArrayList<Minion>(256)
 
         Minions.get { chunkPositions ->
             chunkPositions.forEach { pos ->
                 if (!pos.ticking) return@forEach
                 pos.minions.fastFor { minion ->
-                    if (minion.isTicking() && shouldTickThisCycle(minion, currentTick)) {
+                    if (minion.isTicking()) {
                         tickableMinions.add(minion)
                     }
                 }
@@ -65,16 +57,6 @@ object MinionTicker {
         }
 
         tick++
-    }
-
-    /**
-     * Determines if a minion should tick on this cycle using hash-based staggering. Distributes
-     * minions evenly across tick intervals so not all run simultaneously.
-     */
-    private fun shouldTickThisCycle(minion: Minion, currentTick: Long): Boolean {
-        // Use identity hash to distribute evenly without allocations
-        val hash = System.identityHashCode(minion) and 0x7FFFFFFF
-        return (currentTick % TICK_INTERVAL).toInt() == (hash % TICK_INTERVAL)
     }
 
     fun startTicking() {
